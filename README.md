@@ -1,4 +1,4 @@
-# YouTube-downloader-Desktop
+# YouTube downloader Desktop
 Download a video or playlist from YouTube via the link
 ## Which link?
 * Click on "SHARE" button  
