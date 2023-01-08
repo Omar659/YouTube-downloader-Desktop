@@ -8,12 +8,12 @@ class Downloader():
     def __init__(self):
         self.finished = 0
 
-    def download_video(self, link):
+    def download_video(self, link, i):
         video_url = link
         with youtube_dl.YoutubeDL() as ydl:
             video_info = ydl.extract_info(video_url, download=False)
             filename = ydl.prepare_filename(video_info)
-            filename = "downloads/" + ".".join(filename.split(".")[:-1]) + ".mp3"
+            filename = "downloads/" + str(i) + " - " + ".".join(filename.split(".")[:-1]) + ".mp3"
         options={
             'format':'bestaudio/best',
             'keepvideo':False,
@@ -30,7 +30,7 @@ class Downloader():
         playlist = Playlist(link)
         threads = []
         for i, url in enumerate(playlist.video_urls):
-            download_thread = threading.Thread(target = self.download_video, args = [url])
+            download_thread = threading.Thread(target = self.download_video, args = [url, i])
             threads.append(download_thread)
         for thread in threads:
             thread.start()
