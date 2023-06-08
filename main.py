@@ -1,88 +1,124 @@
-from tkinter import ttk
 import tkinter as tk
-from tkinter import filedialog
+from tkinter import filedialog, messagebox, ttk
+from pytube import YouTube, Playlist
+from threading import Thread
 import os
-import re
-from pytube import Playlist, YouTube
 
-class Downloader(tk.Frame):
-    def __init__(self, master=None):
-        super().__init__(master)
-        self.master = master
-        self.pack()
-        self.create_widgets()
-
-    def create_widgets(self):
-        self.link_label = tk.Label(self, text="Inserisci il link del video o della playlist:")
-        self.link_label.pack()
-
-        self.link_entry = tk.Entry(self)
-        self.link_entry.pack()
-
-        self.select_folder_frame = tk.Frame(self)
-        self.select_folder_frame.pack()
-
-        self.select_folder_label = tk.Label(self.select_folder_frame, text="Cartella di destinazione:")
-        self.select_folder_label.pack(side="left")
-
-        self.select_folder_path = tk.StringVar()
-        self.select_folder_path.set("./.././download")
-
-        self.select_folder_entry = tk.Entry(self.select_folder_frame, textvariable=self.select_folder_path)
-        self.select_folder_entry.pack(side="left")
-
-        self.select_folder_button = tk.Button(self.select_folder_frame, text="Sfoglia", command=self.select_folder)
-        self.select_folder_button.pack(side="left")
-
-        self.download_button = tk.Button(self, text="Download", command=self.download)
-        self.download_button.pack()
-
-        self.progress_bar = tk.ttk.Progressbar(self, orient="horizontal", length=400, mode="determinate")
-        self.progress_bar.pack()
-
-    def select_folder(self):
-        folder_path = filedialog.askdirectory(initialdir="./.././download")
-        if folder_path:
-            self.select_folder_path.set(folder_path)
-
-    def download(self):
-        url = self.link_entry.get()
-        folder_path = self.select_folder_path.get()
-
-        if 'playlist' in url:
-            self.download_playlist(url, folder_path)
+class DownloaderApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("YouTube Downloader")
+        
+        self.root.geometry("400x380")
+        self.root.resizable(1, 1)
+        
+        self.style = ttk.Style()
+        self.style.configure("TFrame", background="#fff")
+        self.style.configure("TButton", background="#4CAF50", foreground="#404040", font=("Helvetica", 10, "bold"))
+        
+        self.style.configure("TLabel", background="#fff", foreground="#333", font=("Helvetica", 10))
+        
+        self.main_frame = ttk.Frame(root, padding="20")
+        self.main_frame.pack(fill="both", expand=True)
+        
+        self.link_label = ttk.Label(self.main_frame, text="Link del video o della playlist:")
+        self.link_label.pack(anchor="w", pady=(0, 10))
+        
+        self.link_entry = ttk.Entry(self.main_frame, width=50)
+        self.link_entry.pack(pady=(0, 10))
+        
+        self.path_label = ttk.Label(self.main_frame, text="Cartella di download:")
+        self.path_label.pack(anchor="w", pady=(0, 10))
+        
+        self.path_entry = ttk.Entry(self.main_frame, width=50)
+        self.path_entry.pack(pady=(0, 10))
+        
+        self.browse_button = ttk.Button(self.main_frame, text="Sfoglia", command=self.browse_path)
+        self.browse_button.pack(pady=(0, 10))
+        
+        self.download_type = tk.StringVar()
+        self.download_type.set("video")
+        
+        self.video_radio = ttk.Radiobutton(self.main_frame, text="Scarica video", variable=self.download_type, value="video")
+        self.video_radio.pack(anchor="w", pady=(0, 10))
+        
+        self.audio_radio = ttk.Radiobutton(self.main_frame, text="Scarica solo audio (MP3)", variable=self.download_type, value="audio")
+        self.audio_radio.pack(anchor="w", pady=(0, 10))
+        
+        self.progress_label = ttk.Label(self.main_frame, text="Progresso:")
+        self.progress_label.pack(anchor="w", pady=(0, 10))
+        
+        self.progress_bar = ttk.Progressbar(self.main_frame, orient="horizontal", length=300, mode="determinate")
+        self.progress_bar.pack(pady=(0, 10))
+        
+        self.download_button = ttk.Button(self.main_frame, text="Scarica", command=self.start_download)
+        self.download_button.pack(pady=(0, 10))
+    
+    def browse_path(self):
+        path = filedialog.askdirectory()
+        self.path_entry.delete(0, tk.END)
+        self.path_entry.insert(tk.END, path)
+    
+    def download_video(self, link, path):
+        try:
+            yt = YouTube(link)
+            if self.download_type.get() == "video":
+                video = yt.streams.get_highest_resolution()
+                filename = video.default_filename
+                video.download(path)
+            else:
+                audio = yt.streams.filter(only_audio=True).first()
+                filename = audio.default_filename.replace("mp4", "mp3")
+                file_path = os.path.join(path, filename)
+                audio.download(path)
+                audio_path = os.path.join(path, audio.default_filename)
+                os.rename(os.path.join(path, audio.default_filename), file_path)            
+            messagebox.showinfo("Download completato", "Il file è stato scaricato con successo!")
+        except Exception as e:
+            messagebox.showerror("Errore", str(e))
+    
+    def download_playlist(self, link, path):
+        try:
+            playlist = Playlist(link)
+            total_videos = len(playlist.video_urls)
+            downloaded_videos = 0
+            
+            for url in playlist.video_urls:
+                yt = YouTube(url)
+                if self.download_type.get() == "video":
+                    video = yt.streams.get_highest_resolution()
+                    filename = str(downloaded_videos + 1) + " - " + video.default_filename
+                    video.download(path)
+                else:
+                    audio = yt.streams.filter(only_audio=True).first()
+                    filename = audio.default_filename.replace("mp4", "mp3")
+                    file_path = os.path.join(path, str(downloaded_videos + 1) + " - " + filename)
+                    audio.download(path)
+                    os.rename(os.path.join(path, audio.default_filename), file_path)                
+                downloaded_videos += 1
+                self.progress_bar["value"] = (downloaded_videos / total_videos) * 100
+                self.root.update_idletasks()
+            
+            messagebox.showinfo("Download completato", "La playlist è stata scaricata con successo!")
+        except Exception as e:
+            messagebox.showerror("Errore", str(e))
+    
+    def start_download(self):
+        link = self.link_entry.get()
+        path = self.path_entry.get()
+        
+        if not link or not path:
+            messagebox.showwarning("Attenzione", "Inserisci il link e la cartella di download!")
+            return
+        
+        if "playlist?list=" in link:
+            thread = Thread(target=self.download_playlist, args=(link, path))
         else:
-            self.download_video(url, folder_path)
-
-    def download_video(self, url, folder_path):
-        yt = YouTube(url)
-        stream = yt.streams.filter(only_audio=True).first()
-        file_name = stream.default_filename.replace("mp4", "mp3")
-        file_path = os.path.join(folder_path, file_name)
-        stream.download(folder_path)
-        os.rename(os.path.join(folder_path, stream.default_filename), file_path)
-        self.progress_bar['value'] = 100.0
-        self.progress_bar['text'] = '100% completato'
-
-    def download_playlist(self, url, folder_path):
-        playlist = Playlist(url)
-        playlist._video_regex = re.compile(r"\"url\":\"(/watch\?v=[\w-]*)")
-        for i, video in enumerate(playlist.video_urls):
-            try:
-                yt = YouTube(video)
-                stream = yt.streams.filter(only_audio=True).first()
-                file_name = stream.default_filename.replace("mp4", "mp3")
-                file_path = os.path.join(folder_path, str(i) + " - " + file_name)
-                stream.download(folder_path)
-                os.rename(os.path.join(folder_path, stream.default_filename), file_path)
-                self.progress_bar['value'] = float(i+1)/len(playlist.video_urls) * 100.0
-                self.update()
-            except:
-                continue
-        self.progress_bar['value'] = 0
+            thread = Thread(target=self.download_video, args=(link, path))
+        
+        thread.start()
 
 if __name__ == "__main__":
     root = tk.Tk()
-    root.title("Downloader")
-    app = Downloader(master=root)
-    app.mainloop()
+    app = DownloaderApp(root)
+    root.mainloop()

@@ -1,4 +1,4 @@
-('C:\\Desktop\\Documenti\\ss\\build\\main\\PYZ-00.pyz',
+('C:\\Desktop\\Documenti\\YouTube-downloader-Desktop\\build\\main\\PYZ-00.pyz',
  [('_compat_pickle',
    'C:\\Users\\Omar '
    'Bayoumi\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\_compat_pickle.py',
